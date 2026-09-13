@@ -19,8 +19,14 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.BuscaImoveisIA"
     },
+    "plugins": ["expo-speech-recognition"],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8e4d3e70-69e9-4c63-a56a-276e9cd1d891"
+      }
     }
   }
 }
