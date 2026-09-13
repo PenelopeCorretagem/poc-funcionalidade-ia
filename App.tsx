@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -10,10 +10,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { GoogleGenAI } from '@google/genai';
-import Voice, {
-  SpeechErrorEvent,
-  SpeechResultsEvent,
-} from '@react-native-voice/voice';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 
 const GEMINI_API_KEY = '';
 
@@ -101,36 +101,33 @@ export default function App(): React.JSX.Element {
   const [erro, setErro] = useState<string | null>(null);
   const [gravando, setGravando] = useState<boolean>(false);
 
-  // Configura os listeners do reconhecimento de voz
-  useEffect(() => {
-    Voice.onSpeechResults = (e: SpeechResultsEvent) => {
-      const texto = e.value?.[0];
-      if (texto) {
-        setTextoUsuario(texto);
-      }
-    };
-
-    Voice.onSpeechError = (e: SpeechErrorEvent) => {
-      setErro(e.error?.message ?? 'Erro no reconhecimento de voz.');
-      setGravando(false);
-    };
-
-    Voice.onSpeechEnd = () => {
-      setGravando(false);
-    };
-
-    return () => {
-      // Remove os listeners e libera o reconhecedor ao desmontar o componente
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
-  }, []);
+  useSpeechRecognitionEvent('start', () => setGravando(true));
+  useSpeechRecognitionEvent('end', () => setGravando(false));
+  useSpeechRecognitionEvent('result', (event) => {
+    const texto = event.results[0]?.transcript;
+    if (texto) {
+      setTextoUsuario(texto);
+    }
+  });
+  useSpeechRecognitionEvent('error', (event) => {
+    setErro(event.message ?? 'Erro no reconhecimento de voz.');
+    setGravando(false);
+  });
 
   async function iniciarGravacao(): Promise<void> {
     try {
       setErro(null);
       setTextoUsuario('');
-      await Voice.start('pt-BR');
-      setGravando(true);
+      const permissao = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permissao.granted) {
+        setErro('Permissão para usar o microfone não concedida.');
+        return;
+      }
+      ExpoSpeechRecognitionModule.start({
+        lang: 'pt-BR',
+        interimResults: true,
+        continuous: false,
+      });
     } catch (e) {
       setErro('Não foi possível acessar o microfone.');
       setGravando(false);
@@ -139,7 +136,7 @@ export default function App(): React.JSX.Element {
 
   async function pararGravacao(): Promise<void> {
     try {
-      await Voice.stop();
+      ExpoSpeechRecognitionModule.stop();
     } catch (e) {
       // Se falhar ao parar, ainda assim tiramos o estado de "gravando"
     } finally {
